@@ -1,0 +1,31 @@
+trader_id,overtrading,loss_aversion,herding,risk_score,tier,reasons
+8,0.0,0.1714599582053479,1.0,31.858398328213916,Medium,Buys after spikes
+21,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+25,0.0,0.9306615938499792,0.0,37.22646375399917,Medium,Averaging down / short holds
+31,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+38,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+43,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+48,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+68,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+74,0.9344596525672171,0.0,0.0,32.70608783985259,Medium,High turnover/trades
+80,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+85,0.0,0.914934705078562,0.0,36.597388203142486,Medium,Averaging down / short holds
+93,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+99,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+121,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+126,0.0,0.7528374503596575,0.0,30.113498014386302,Medium,Averaging down / short holds
+129,0.0,0.9942122480932593,0.0,39.76848992373037,Medium,Averaging down / short holds
+147,0.0,1.0,0.49999999999999994,52.5,Medium,Averaging down / short holds
+169,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+175,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+190,0.0,0.7380952380952381,1.0,54.52380952380953,Medium,"Averaging down / short holds, Buys after spikes"
+192,0.8510133807804227,0.0,0.0,29.78546832731479,Medium,High turnover/trades
+198,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+212,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+219,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+226,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+249,0.0,0.6130952380952381,0.7263174815864236,42.681746563470114,Medium,"Averaging down / short holds, Buys after spikes"
+252,0.0,1.0,0.0,40.0,Medium,Averaging down / short holds
+253,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+261,0.0,0.9047619047619048,0.0,36.1904761904762,Medium,Averaging down / short holds
+284,0.0,0.9047619047619048,0.3333333333333333,44.523809523809526,Medium,Averaging down / short holds

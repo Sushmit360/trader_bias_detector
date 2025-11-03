@@ -1,0 +1,3 @@
+- Built an end‑to‑end behavioral risk system detecting overtrading, loss aversion, and herding; engineered intensity/turnover and herding proxies to score 300 traders weekly.
+- Trained calibrated logistic models (one‑vs‑rest), achieving AUROC up to 1.00; converted outputs into a Behavioral Risk Score with action tiers and top‑decile alerts.
+- Delivered Streamlit dashboard scaffold, auto‑generated whitepaper, figures, and unit tests in a clean, production‑style repo.
