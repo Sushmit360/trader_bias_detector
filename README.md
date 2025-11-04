@@ -75,25 +75,6 @@ The pipeline converts raw trades and optional daily valuations into behavioural 
 | `max_drawdown`             | Largest drawdown from daily portfolio values (if provided)                       |
 | `avg_down_events_rate`     | Alias to `max_drawdown` to serve loss-aversion features                          |
 
-**Mathematical formulation.** For trader *i*, define:
-
-- `D_i = {t_1, ..., t_ki}` = active trading days (size `k_i`)
-- `c_i,t` = trade count on day *t*
-- `n_i,t = Σ_{trades ℓ on t} |q_ℓ| * |p_ℓ|` = total notional on day *t*
-- `b_i,t` = number of buy orders on day *t*
-- `T_i = max(D_i) - min(D_i) + 1` = calendar span in days
-
-Using these:
-
-- `trades_per_active_day_i = (1 / k_i) * Σ_{t ∈ D_i} c_i,t`
-- `turnover_i = Σ_{t ∈ D_i} n_i,t`
-- `pct_days_traded_i = k_i / T_i`
-- `orders_burstiness_i = sqrt( (1 / k_i) * Σ_{t ∈ D_i} (c_i,t - c̄_i)^2 ) / c̄_i`, where `c̄_i` is `trades_per_active_day_i`
-- `avg_hold_days_i = (1 / |G_i|) * Σ_{Δ ∈ G_i} Δ`, with `G_i = {Δ_j = t_j - t_{j-1} | Δ_j > 0}`
-- `buy_after_spike_rate_i = Σ_{t ∈ D_i} 1{ n_i,t ≥ Q0.9(n_i,·) } * b_i,t  /  Σ_{t ∈ D_i} b_i,t`
-- `max_drawdown_i = | min_t ( v_i,t / max_{τ ≤ t} v_i,τ - 1 ) |`, where `v_i,t` is the daily portfolio value (default `0` if missing)
-- `avg_down_events_rate_i = max_drawdown_i`
-
 Safeguards promote robustness:
 - Automatically generate `trade_id` if absent.
 - Coerce timestamps/dates to datetime, dropping invalid rows.
@@ -103,14 +84,12 @@ Safeguards promote robustness:
 
 The scoring module combines heuristics with an on-the-fly logistic regression:
 
-1. **Signal synthesis.** `s_i = 0.55 * trades_per_active_day_i + 0.25 * avg_down_events_rate_i + 0.20 * buy_after_spike_rate_i`
-2. **Time-split style thresholding.** With dense rank `r_i`, compute `theta = median_j ( s_j + 0.05 * r_j / max_ℓ r_ℓ )`. Create pseudo-labels `y_i = 1{ s_i + ε_i > theta }`, where `ε_i` is Gaussian noise with mean `0` and standard deviation `0.1`.
-3. **Model training.** Form feature vector `x_i` (the engineered metrics). Standardise it and fit logistic regression so that `p̂_i = 1 / (1 + exp(-βᵀ x̃_i))`. If only one class exists, use the fallback `p̂_i = (s_i - min_j s_j) / (max_j s_j - min_j s_j)` and default to `0.5` when the denominator is zero.
-4. **Behavioural component scores.** Using cohort maxima `M_trade`, `M_loss`, and `M_herd`, scale each component:  
-   `overtrading_i = min(trades_per_active_day_i / M_trade, 1)`  
-   `loss_aversion_i = min(avg_down_events_rate_i / M_loss, 1)`  
-   `herding_i = min(buy_after_spike_rate_i / M_herd, 1)`
-5. **Risk score.** `R_i = 100 * clip(p̂_i, 0, 1)`. Tiers: Low if `R_i < 30`, Medium if `30 ≤ R_i < 60`, High if `R_i ≥ 60`.
+1. **Signal synthesis** — Weighted blend of trade velocity, drawdown incidence, and momentum chasing forms a base signal.
+2. **Time-split style thresholding** — Trader ranks approximate chronological batches, creating pseudo “past vs. future” labels.
+3. **Model training** — A scikit-learn pipeline (StandardScaler + LogisticRegression) learns class-balanced probabilities.
+4. **Fallback** — If label variance collapses (e.g., tiny cohorts), scores revert to a min-max scaled base signal.
+5. **Behavioural scores** — Overtrading, loss aversion, and herding metrics are normalised to [0,1], powering the gauge visuals.
+6. **Risk score** — Probabilities × 100 produce a behavioural risk score; bins map to Low (<30), Medium (30–60), High (>60).
 
 Alerts focus on the riskiest traders (≥60 or top decile), supplemented with SHAP-style heuristics describing the dominant driver (“High trade velocity vs. peers”, “Holding losers too long”, or “Momentum chasing patterns”).
 
