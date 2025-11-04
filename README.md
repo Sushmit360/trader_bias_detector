@@ -1,4 +1,4 @@
-# Behavioral Bias Detector — Technical Whitepaper
+# Behavioral Bias Detector — README
 
 ## 1. Vision
 
@@ -75,21 +75,24 @@ The pipeline converts raw trades and optional daily valuations into behavioural 
 | `max_drawdown`             | Largest drawdown from daily portfolio values (if provided)                       |
 | `avg_down_events_rate`     | Alias to `max_drawdown` to serve loss-aversion features                          |
 
-**Mathematical formulation.** For trader \(i\), let \(D_i = \{t_1, \dots, t_{k_i}\}\) be the set of active trading days, \(c_{i,t}\) the trade count on day \(t\), \(n_{i,t} = \sum_{\text{trades } \ell \text{ on } t} |q_{\ell}| |p_{\ell}|\) the total notional, and \(b_{i,t}\) the number of buy orders. Define \(T_i = \max D_i - \min D_i + 1\) as the calendar window length in days. Then
+**Mathematical formulation.** For trader *i*, define:
 
-\[
-\begin{aligned}
-\text{trades\_per\_active\_day}_i &= \frac{1}{k_i} \sum_{t \in D_i} c_{i,t},\\[2mm]
-\text{turnover}_i &= \sum_{t \in D_i} n_{i,t},\\[2mm]
-\text{pct\_days\_traded}_i &= \frac{k_i}{T_i},\\[2mm]
-\text{orders\_burstiness}_i &= \frac{\sqrt{\frac{1}{k_i} \sum_{t \in D_i} \left(c_{i,t} - \bar{c}_i\right)^2}}{\bar{c}_i}, \quad \bar{c}_i = \text{trades\_per\_active\_day}_i,\\[2mm]
-\text{avg\_hold\_days}_i &= \frac{1}{|G_i|} \sum_{\Delta \in G_i} \Delta, \quad G_i = \{\Delta_{j} = t_{j} - t_{j-1} \mid \Delta_{j} > 0 \},\\[2mm]
-\text{buy\_after\_spike\_rate}_i &= \frac{\sum_{t \in D_i} \mathbb{1}\{n_{i,t} \geq Q_{0.9}(n_{i,\cdot})\} \, b_{i,t}}{\sum_{t \in D_i} b_{i,t}},\\[2mm]
-\text{max\_drawdown}_i &= \left| \min_{t} \left(\frac{v_{i,t}}{\max_{\tau \leq t} v_{i,\tau}} - 1 \right) \right|,
-\end{aligned}
-\]
+- `D_i = {t_1, ..., t_ki}` = active trading days (size `k_i`)
+- `c_i,t` = trade count on day *t*
+- `n_i,t = Σ_{trades ℓ on t} |q_ℓ| * |p_ℓ|` = total notional on day *t*
+- `b_i,t` = number of buy orders on day *t*
+- `T_i = max(D_i) - min(D_i) + 1` = calendar span in days
 
-where \(Q_{0.9}(n_{i,\cdot})\) is the 90th percentile of \(\{n_{i,t}\}_{t \in D_i}\) and \(v_{i,t}\) is the daily portfolio value when provided (the drawdown term defaults to \(0\) otherwise). Finally, \(\text{avg\_down\_events\_rate}_i = \text{max\_drawdown}_i\).
+Using these:
+
+- `trades_per_active_day_i = (1 / k_i) * Σ_{t ∈ D_i} c_i,t`
+- `turnover_i = Σ_{t ∈ D_i} n_i,t`
+- `pct_days_traded_i = k_i / T_i`
+- `orders_burstiness_i = sqrt( (1 / k_i) * Σ_{t ∈ D_i} (c_i,t - c̄_i)^2 ) / c̄_i`, where `c̄_i` is `trades_per_active_day_i`
+- `avg_hold_days_i = (1 / |G_i|) * Σ_{Δ ∈ G_i} Δ`, with `G_i = {Δ_j = t_j - t_{j-1} | Δ_j > 0}`
+- `buy_after_spike_rate_i = Σ_{t ∈ D_i} 1{ n_i,t ≥ Q0.9(n_i,·) } * b_i,t  /  Σ_{t ∈ D_i} b_i,t`
+- `max_drawdown_i = | min_t ( v_i,t / max_{τ ≤ t} v_i,τ - 1 ) |`, where `v_i,t` is the daily portfolio value (default `0` if missing)
+- `avg_down_events_rate_i = max_drawdown_i`
 
 Safeguards promote robustness:
 - Automatically generate `trade_id` if absent.
@@ -100,23 +103,14 @@ Safeguards promote robustness:
 
 The scoring module combines heuristics with an on-the-fly logistic regression:
 
-1. **Signal synthesis.** Define
-   \[
-   s_i = 0.55 \cdot \text{trades\_per\_active\_day}_i + 0.25 \cdot \text{avg\_down\_events\_rate}_i + 0.20 \cdot \text{buy\_after\_spike\_rate}_i.
-   \]
-2. **Time-split style thresholding.** Let \(r_i\) be trader \(i\)'s dense rank order and set \(\theta = \operatorname{median}_j\left(s_j + 0.05 \frac{r_j}{\max_\ell r_\ell}\right)\). Synthetic labels follow \(y_i = \mathbb{1}\{s_i + \varepsilon_i > \theta\}\) with \(\varepsilon_i \sim \mathcal{N}(0, 0.1^2)\).
-3. **Model training.** With feature vector \(x_i \in \mathbb{R}^8\) (the engineered metrics), a StandardScaler–LogisticRegression pipeline solves
-   \[
-   \hat{p}_i = \sigma\!\left(\beta^\top \tilde{x}_i\right), \quad \sigma(z) = \frac{1}{1 + e^{-z}},
-   \]
-   where \(\tilde{x}_i\) is the standardised feature vector. If the pseudo-labels collapse to a single class, the fallback sets \(\hat{p}_i = \frac{s_i - \min_j s_j}{\max_j s_j - \min_j s_j}\) (defaulting to \(0.5\) when the denominator vanishes).
-4. **Behavioural component scores.** With cohort-wide maxima \(M_{\text{trade}} = \max_j \text{trades\_per\_active\_day}_j\), \(M_{\text{loss}} = \max_j \text{avg\_down\_events\_rate}_j\), \(M_{\text{herd}} = \max_j \text{buy\_after\_spike\_rate}_j\),
-   \[
-   \text{overtrading}_i = \min\!\left(\frac{\text{trades\_per\_active\_day}_i}{M_{\text{trade}}}, 1\right),\quad
-   \text{loss\_aversion}_i = \min\!\left(\frac{\text{avg\_down\_events\_rate}_i}{M_{\text{loss}}}, 1\right),\quad
-   \text{herding}_i = \min\!\left(\frac{\text{buy\_after\_spike\_rate}_i}{M_{\text{herd}}}, 1\right).
-   \]
-5. **Risk score.** The final behavioural risk score is \(R_i = 100 \cdot \operatorname{clip}(\hat{p}_i, 0, 1)\). Tiers follow \(R_i < 30 \Rightarrow \text{Low}\), \(30 \leq R_i < 60 \Rightarrow \text{Medium}\), \(R_i \geq 60 \Rightarrow \text{High}\).
+1. **Signal synthesis.** `s_i = 0.55 * trades_per_active_day_i + 0.25 * avg_down_events_rate_i + 0.20 * buy_after_spike_rate_i`
+2. **Time-split style thresholding.** With dense rank `r_i`, compute `theta = median_j ( s_j + 0.05 * r_j / max_ℓ r_ℓ )`. Create pseudo-labels `y_i = 1{ s_i + ε_i > theta }`, where `ε_i` is Gaussian noise with mean `0` and standard deviation `0.1`.
+3. **Model training.** Form feature vector `x_i` (the engineered metrics). Standardise it and fit logistic regression so that `p̂_i = 1 / (1 + exp(-βᵀ x̃_i))`. If only one class exists, use the fallback `p̂_i = (s_i - min_j s_j) / (max_j s_j - min_j s_j)` and default to `0.5` when the denominator is zero.
+4. **Behavioural component scores.** Using cohort maxima `M_trade`, `M_loss`, and `M_herd`, scale each component:  
+   `overtrading_i = min(trades_per_active_day_i / M_trade, 1)`  
+   `loss_aversion_i = min(avg_down_events_rate_i / M_loss, 1)`  
+   `herding_i = min(buy_after_spike_rate_i / M_herd, 1)`
+5. **Risk score.** `R_i = 100 * clip(p̂_i, 0, 1)`. Tiers: Low if `R_i < 30`, Medium if `30 ≤ R_i < 60`, High if `R_i ≥ 60`.
 
 Alerts focus on the riskiest traders (≥60 or top decile), supplemented with SHAP-style heuristics describing the dominant driver (“High trade velocity vs. peers”, “Holding losers too long”, or “Momentum chasing patterns”).
 
