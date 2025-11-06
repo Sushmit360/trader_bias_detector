@@ -110,7 +110,7 @@ Users can inspect sample tables on the landing page, download them, or run the s
 1. **Upload section** — CSV/XLSX uploaders for trades and optional daily values, blue CTA for running the pipeline, and quick access to sample packs.
 2. **Persistent validation** — Missing uploads trigger a warning that remains visible until resolved.
 3. **Sample preview** — Tabbed tables show the first five rows of trades/daily data plus the risk score range.
-4. **AI prompt** — Scrollable, copy-enabled code block provides a ready-made request for any LLM to fabricate compliant datasets (with optional `[TARGET_RISK_TIER]` bias).
+4. **AI prompt** — Copiable code block provides a ready-made request for any LLM to fabricate compliant datasets (with optional `[TARGET_RISK_TIER]` bias).
 5. **Dashboards**:
    - *Overview* — KPIs, score histogram, radar chart, top-risk table, download exports.
    - *Segments* — Turnover vs. drawdown scatter with filters and CSV export.
